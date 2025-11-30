@@ -1,0 +1,207 @@
+{
+  "tests": [
+    {
+      "name": "Test 1: Send Email Message",
+      "method": "POST",
+      "url": "http://localhost:3001/messages",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "tenantId": "test-tenant-001",
+        "userId": "user-email-123",
+        "idempotencyKey": "test-email-001",
+        "channel": "email",
+        "recipient": "john.doe@example.com",
+        "body": "Hello! This is a test email message from the notification system."
+      },
+      "expectedStatus": 200,
+      "expectedFields": ["messageId", "dedupKey", "traceId", "status"]
+    },
+    {
+      "name": "Test 2: Send SMS Message",
+      "method": "POST",
+      "url": "http://localhost:3001/messages",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "tenantId": "test-tenant-001",
+        "userId": "user-sms-456",
+        "idempotencyKey": "test-sms-001",
+        "channel": "sms",
+        "recipient": "+1234567890",
+        "body": "Hi! This is a test SMS message from the notification system."
+      },
+      "expectedStatus": 200,
+      "expectedFields": ["messageId", "dedupKey", "traceId", "status"]
+    },
+    {
+      "name": "Test 3: Send WhatsApp Message",
+      "method": "POST",
+      "url": "http://localhost:3001/messages",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "tenantId": "test-tenant-001",
+        "userId": "user-whatsapp-789",
+        "idempotencyKey": "test-whatsapp-001",
+        "channel": "whatsapp",
+        "recipient": "+1987654321",
+        "body": "Hey! This is a test WhatsApp message from the notification system."
+      },
+      "expectedStatus": 200,
+      "expectedFields": ["messageId", "dedupKey", "traceId", "status"]
+    },
+    {
+      "name": "Test 4: Duplicate Detection - First Message",
+      "method": "POST",
+      "url": "http://localhost:3001/messages",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "tenantId": "test-tenant-001",
+        "userId": "user-dedup-123",
+        "idempotencyKey": "unique-idempotency-key-12345",
+        "channel": "email",
+        "recipient": "dedup.test@example.com",
+        "body": "This is the first message"
+      },
+      "expectedStatus": 200,
+      "expectedResponse": {
+        "status": "ACCEPTED"
+      }
+    },
+    {
+      "name": "Test 5: Duplicate Detection - Second Message (Same Key)",
+      "method": "POST",
+      "url": "http://localhost:3001/messages",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "tenantId": "test-tenant-001",
+        "userId": "user-dedup-123",
+        "idempotencyKey": "unique-idempotency-key-12345",
+        "channel": "email",
+        "recipient": "dedup.test@example.com",
+        "body": "This is the first message"
+      },
+      "expectedStatus": 200,
+      "expectedResponse": {
+        "status": "DUPLICATE"
+      }
+    },
+    {
+      "name": "Test 6: Missing Required Field (should fail)",
+      "method": "POST",
+      "url": "http://localhost:3001/messages",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "tenantId": "test-tenant-001",
+        "userId": "user-123"
+      },
+      "expectedStatus": 400,
+      "description": "Should return validation error"
+    },
+    {
+      "name": "Test 7: Different Users (Partition Distribution)",
+      "method": "POST",
+      "url": "http://localhost:3001/messages",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "variations": [
+        {
+          "userId": "partition-user-1",
+          "idempotencyKey": "partition-key-1",
+          "recipient": "user1@example.com"
+        },
+        {
+          "userId": "partition-user-2",
+          "idempotencyKey": "partition-key-2",
+          "recipient": "user2@example.com"
+        },
+        {
+          "userId": "partition-user-3",
+          "idempotencyKey": "partition-key-3",
+          "recipient": "user3@example.com"
+        }
+      ],
+      "baseBody": {
+        "tenantId": "test-tenant-001",
+        "channel": "email",
+        "body": "Testing partition distribution"
+      },
+      "expectedStatus": 200,
+      "description": "Send to different users to test partition distribution"
+    },
+    {
+      "name": "Test 8: Verify Message in Kafka",
+      "command": "docker compose exec kafka kafka-console-consumer --topic messages.email --from-beginning --max-messages 1 --bootstrap-server notification-kafka:29092",
+      "description": "Check if message was published to Kafka topic"
+    },
+    {
+      "name": "Test 9: Verify Consumer Group Status",
+      "command": "docker compose exec kafka kafka-consumer-groups --describe --group delivery-workers-group --bootstrap-server notification-kafka:29092",
+      "description": "Check if consumer group is active and consuming messages"
+    },
+    {
+      "name": "Test 10: Check Elasticsearch Logs",
+      "method": "GET",
+      "url": "http://localhost:9200/logs-*/_search?pretty",
+      "expectedStatus": 200,
+      "description": "Verify logs are being indexed in Elasticsearch"
+    },
+    {
+      "name": "Test 11: Search Logs by TraceId",
+      "method": "POST",
+      "url": "http://localhost:9200/logs-*/_search",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "query": {
+          "match": {
+            "traceId": "REPLACE_WITH_TRACE_ID"
+          }
+        }
+      },
+      "description": "Search for a specific message flow using its traceId"
+    }
+  ],
+  "testEnvironment": {
+    "baseUrl": "http://localhost:3001",
+    "elasticsearch": "http://localhost:9200",
+    "kibana": "http://localhost:5601",
+    "kafka": "localhost:9092",
+    "redis": "localhost:6379",
+    "mysql": "localhost:3307"
+  },
+  "requiredServices": [
+    "notification-task-router (port 3001)",
+    "notification-aggregator (port 3002)",
+    "notification-logger (port 3003)",
+    "notification-kafka (port 29092)",
+    "notification-elasticsearch (port 9200)",
+    "notification-kibana (port 5601)",
+    "notification-redis (port 6379)",
+    "notification-mysql (port 3307)"
+  ],
+  "expectedResponse": {
+    "success": {
+      "messageId": "uuid-format",
+      "dedupKey": "xxh64-hash",
+      "traceId": "uuid-format",
+      "status": "ACCEPTED or DUPLICATE"
+    },
+    "error": {
+      "error": "error message",
+      "statusCode": 400
+    }
+  }
+}

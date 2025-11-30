@@ -1,0 +1,36 @@
+{
+  "name": "notification-aggregator",
+  "version": "1.0.0",
+  "description": "3-microservice notification aggregator system with TypeScript, Kafka, Redis, MySQL, Elasticsearch",
+  "private": true,
+  "workspaces": [
+    "services/task-router",
+    "services/notification-aggregator",
+    "services/logger"
+  ],
+  "scripts": {
+    "build": "npm run build -ws",
+    "install-all": "npm install",
+    "dev": "npm run dev -ws",
+    "start:router": "npm start --workspace=services/task-router",
+    "start:aggregator": "npm start --workspace=services/notification-aggregator",
+    "start:logger": "npm start --workspace=services/logger",
+    "db:migrate": "node scripts/migrate.js",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:up:with-tests": "docker-compose --profile test up",
+    "docker:up:with-tests:detached": "docker-compose --profile test up -d",
+    "test": "node tests/integration-tests.js",
+    "test:integration": "node tests/integration-tests.js",
+    "test:integration:watch": "nodemon tests/integration-tests.js",
+    "test:integration:debug": "node --inspect tests/integration-tests.js",
+    "health-check": "node scripts/health-check.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.25",
+    "nodemon": "^3.0.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}

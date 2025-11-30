@@ -1,0 +1,289 @@
+{
+  "info": {
+    "name": "Notification Aggregator System - API Tests",
+    "description": "Complete test suite for the Notification Aggregator System",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Messages API Tests",
+      "item": [
+        {
+          "name": "1. Send Email Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenantId\": \"test-tenant-001\",\n  \"userId\": \"user-email-123\",\n  \"idempotencyKey\": \"test-email-{{$timestamp}}\",\n  \"channel\": \"email\",\n  \"recipient\": \"john.doe@example.com\",\n  \"body\": \"Hello! This is a test email message from the notification system.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["messages"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2. Send SMS Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenantId\": \"test-tenant-001\",\n  \"userId\": \"user-sms-456\",\n  \"idempotencyKey\": \"test-sms-{{$timestamp}}\",\n  \"channel\": \"sms\",\n  \"recipient\": \"+1234567890\",\n  \"body\": \"Hi! This is a test SMS message from the notification system.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["messages"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3. Send WhatsApp Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenantId\": \"test-tenant-001\",\n  \"userId\": \"user-whatsapp-789\",\n  \"idempotencyKey\": \"test-whatsapp-{{$timestamp}}\",\n  \"channel\": \"whatsapp\",\n  \"recipient\": \"+1987654321\",\n  \"body\": \"Hey! This is a test WhatsApp message from the notification system.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["messages"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4. Test Duplicate Detection - First",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenantId\": \"test-tenant-001\",\n  \"userId\": \"user-dedup-123\",\n  \"idempotencyKey\": \"unique-key-dedup-test\",\n  \"channel\": \"email\",\n  \"recipient\": \"dedup@example.com\",\n  \"body\": \"First message for duplicate test\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["messages"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5. Test Duplicate Detection - Second (Duplicate)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenantId\": \"test-tenant-001\",\n  \"userId\": \"user-dedup-123\",\n  \"idempotencyKey\": \"unique-key-dedup-test\",\n  \"channel\": \"email\",\n  \"recipient\": \"dedup@example.com\",\n  \"body\": \"First message for duplicate test\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["messages"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Kafka Verification",
+      "item": [
+        {
+          "name": "List All Topics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:9092/topics",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "9092",
+              "path": ["topics"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Check Consumer Group Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:9092/consumers/delivery-workers-group",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "9092",
+              "path": ["consumers", "delivery-workers-group"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Elasticsearch Queries",
+      "item": [
+        {
+          "name": "1. Get All Logs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{elasticsearchUrl}}/logs-*/_search?pretty",
+              "host": ["{{elasticsearchUrl}}"],
+              "path": ["logs-*", "_search"],
+              "query": [
+                {
+                  "key": "pretty",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2. Count Logs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{elasticsearchUrl}}/logs-*/_count",
+              "host": ["{{elasticsearchUrl}}"],
+              "path": ["logs-*", "_count"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3. Search by TraceId",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": {\n    \"match\": {\n      \"traceId\": \"REPLACE_WITH_TRACE_ID\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{elasticsearchUrl}}/logs-*/_search",
+              "host": ["{{elasticsearchUrl}}"],
+              "path": ["logs-*", "_search"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4. Search by UserId",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": {\n    \"match\": {\n      \"userId\": \"user-email-123\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{elasticsearchUrl}}/logs-*/_search",
+              "host": ["{{elasticsearchUrl}}"],
+              "path": ["logs-*", "_search"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5. Search by Channel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": {\n    \"match\": {\n      \"channel\": \"email\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{elasticsearchUrl}}/logs-*/_search",
+              "host": ["{{elasticsearchUrl}}"],
+              "path": ["logs-*", "_search"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3001",
+      "type": "string"
+    },
+    {
+      "key": "elasticsearchUrl",
+      "value": "http://localhost:9200",
+      "type": "string"
+    },
+    {
+      "key": "kibanaUrl",
+      "value": "http://localhost:5601",
+      "type": "string"
+    }
+  ]
+}

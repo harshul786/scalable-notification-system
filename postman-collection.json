@@ -1,0 +1,224 @@
+{
+  "info": {
+    "name": "Notification Aggregator System - Essential API",
+    "description": "10 Essential API endpoints for the Notification Aggregator System - Simple and clear testing collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "taskRouterUrl",
+      "value": "http://localhost:3001",
+      "type": "string"
+    },
+    {
+      "key": "elasticsearchUrl",
+      "value": "http://localhost:9200",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{taskRouterUrl}}/health",
+          "protocol": "http",
+          "host": ["{{taskRouterUrl}}"],
+          "path": ["health"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "2. Send Email",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tenantId\": \"tenant-001\",\n  \"userId\": \"user-123\",\n  \"idempotencyKey\": \"email-{{$timestamp}}\",\n  \"channel\": \"email\",\n  \"recipient\": \"test@example.com\",\n  \"body\": \"Hello! This is a test email message.\"\n}"
+        },
+        "url": {
+          "raw": "{{taskRouterUrl}}/api/messages",
+          "protocol": "http",
+          "host": ["{{taskRouterUrl}}"],
+          "path": ["api", "messages"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "3. Send SMS",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tenantId\": \"tenant-001\",\n  \"userId\": \"user-456\",\n  \"idempotencyKey\": \"sms-{{$timestamp}}\",\n  \"channel\": \"sms\",\n  \"recipient\": \"+1234567890\",\n  \"body\": \"Hi! This is a test SMS message.\"\n}"
+        },
+        "url": {
+          "raw": "{{taskRouterUrl}}/api/messages",
+          "protocol": "http",
+          "host": ["{{taskRouterUrl}}"],
+          "path": ["api", "messages"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "4. Send WhatsApp",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tenantId\": \"tenant-001\",\n  \"userId\": \"user-789\",\n  \"idempotencyKey\": \"whatsapp-{{$timestamp}}\",\n  \"channel\": \"whatsapp\",\n  \"recipient\": \"+1234567890\",\n  \"body\": \"Hey! This is a test WhatsApp message.\"\n}"
+        },
+        "url": {
+          "raw": "{{taskRouterUrl}}/api/messages",
+          "protocol": "http",
+          "host": ["{{taskRouterUrl}}"],
+          "path": ["api", "messages"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "5. Test Duplicate Detection",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tenantId\": \"tenant-001\",\n  \"userId\": \"user-dup\",\n  \"idempotencyKey\": \"dup-test-001\",\n  \"channel\": \"email\",\n  \"recipient\": \"dup@example.com\",\n  \"body\": \"This message will trigger duplicate detection when sent again.\"\n}"
+        },
+        "url": {
+          "raw": "{{taskRouterUrl}}/api/messages",
+          "protocol": "http",
+          "host": ["{{taskRouterUrl}}"],
+          "path": ["api", "messages"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "6. Test Validation Error",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tenantId\": \"tenant-001\",\n  \"userId\": \"user-error\",\n  \"idempotencyKey\": \"error-test\",\n  \"channel\": \"invalid\",\n  \"recipient\": \"test@example.com\",\n  \"body\": \"This should fail validation.\"\n}"
+        },
+        "url": {
+          "raw": "{{taskRouterUrl}}/api/messages",
+          "protocol": "http",
+          "host": ["{{taskRouterUrl}}"],
+          "path": ["api", "messages"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "7. Search Logs by TraceId",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": {\n    \"match\": {\n      \"traceId\": \"REPLACE_WITH_TRACE_ID\"\n    }\n  }\n}"
+        },
+        "url": {
+          "raw": "{{elasticsearchUrl}}/logs-*/_search",
+          "protocol": "http",
+          "host": ["{{elasticsearchUrl}}"],
+          "path": ["logs-*", "_search"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "8. Count All Logs",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{elasticsearchUrl}}/logs-*/_count",
+          "protocol": "http",
+          "host": ["{{elasticsearchUrl}}"],
+          "path": ["logs-*", "_count"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "9. Search by Status (SENT)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": {\n    \"match\": {\n      \"status\": \"SENT\"\n    }\n  },\n  \"size\": 20\n}"
+        },
+        "url": {
+          "raw": "{{elasticsearchUrl}}/logs-*/_search",
+          "protocol": "http",
+          "host": ["{{elasticsearchUrl}}"],
+          "path": ["logs-*", "_search"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "10. Open Kibana Dashboard",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5601",
+          "protocol": "http",
+          "host": ["localhost"],
+          "path": [""]
+        }
+      },
+      "response": []
+    }
+  ]
+}
