@@ -293,7 +293,7 @@ Single `traceId` follows message through entire system:
 npm install && npm run build
 
 # 2. Start everything
-docker-compose up -d && npm run start:router & npm run start:aggregator & npm run start:logger &
+docker-compose up
 
 # 3. Verify (wait 10 seconds for services to initialize)
 sleep 10
