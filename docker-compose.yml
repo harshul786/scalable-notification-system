@@ -175,9 +175,13 @@ services:
 
   task-router:
     container_name: notification-task-router
-    # Exposes REST API (POST /messages)
-    # Publishes to: messages.email, messages.sms, messages.whatsapp
-    # Publishes logs to: logs topic
+    # REST API Entry Point (Port 3001)
+    # - Validates request payloads
+    # - Checks Redis ingress cache (72h TTL) for duplicates
+    # - Publishes to: messages.email, messages.sms, messages.whatsapp (unconditionally)
+    # - Publishes logs to: logs topic
+    # - Does NOT write to MySQL (async in consumer)
+    # - Returns 202 ACCEPTED immediately (no DB write)
     build:
       context: .
       dockerfile: ./services/task-router/Dockerfile
@@ -208,9 +212,16 @@ services:
 
   notification-aggregator:
     container_name: notification-aggregator-service
-    # Consumer Group: delivery-workers-group
-    # Consumes from: messages.email, messages.sms, messages.whatsapp (3 partitions each)
-    # Publishes to: dlq.email, dlq.sms, dlq.whatsapp (on max retries), logs topic
+    # Kafka Batch Consumer (Delivery Workers Group)
+    # - Consumes message batches from Kafka topics
+    # - Performs bulk DB idempotency check (1 query per batch, not N per-message)
+    # - Partitions batch into NEW (to process) vs DUPLICATE (skip)
+    # - Inserts NEW messages with status=IN_PROGRESS (atomically)
+    # - Calls provider APIs with idempotency tokens (messageId)
+    # - Updates status to SENT on success
+    # - Schedules retries in Redis ZSET on failure
+    # - Escalates to DLQ on max attempts
+    # - Publishes to: dlq.email, dlq.sms, dlq.whatsapp, logs topic
     build:
       context: .
       dockerfile: ./services/notification-aggregator/Dockerfile
@@ -256,9 +267,12 @@ services:
 
   logger:
     container_name: notification-logger-service
-    # Consumer Group: logger-group (single instance for ordered log consumption)
-    # Consumes from: logs (1 partition - preserves total ordering)
-    # Publishes to: Elasticsearch
+    # Log Consumer (Singleton for Total Ordering)
+    # - Single instance consumes from logs topic (1 partition)
+    # - Preserves total ordering of logs across all services
+    # - Writes structured logs to Elasticsearch
+    # - Visualizable in Kibana (filter by traceId, status, channel)
+    # Consumer Group: logger-group (single instance only)
     build:
       context: .
       dockerfile: ./services/logger/Dockerfile
@@ -292,7 +306,14 @@ services:
   # ========================================================================
   # TEST RUNNER SERVICE (Optional)
   # ========================================================================
-  # Runs integration tests after all services are healthy
+  # Runs comprehensive integration tests after all services are healthy
+  # Tests include:
+  # - DB-anchored idempotency (Redis cache + MySQL authority)
+  # - Batch processing with bulk idempotency checks
+  # - Duplicate detection (Redis 72h cache, DB fallback)
+  # - Multi-tenant isolation
+  # - All notification channels (Email, SMS, WhatsApp)
+  #
   # Enable with: RUN_TESTS=true docker compose up
   # Or use profiles: docker compose --profile test up
   integration-tests:

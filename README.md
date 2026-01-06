@@ -411,6 +411,29 @@ curl http://localhost:3001/health | jq '.'
 
 ## 🧪 Running Tests (Optional)
 
+### Test Infrastructure Improvements
+
+The test suite now includes several improvements for better reliability and maintainability:
+
+- **Deterministic Test IDs:** Uses a test counter instead of random `Date.now()` calls, ensuring reproducible test execution
+- **Consistent Test Data:** Fixed tenant and user IDs per test to avoid non-deterministic behavior
+- **Helper Function:** `getTestId(prefix)` generates stable test identifiers with readable prefixes
+- **Better Scoping:** Test data is isolated per test case to prevent cross-test pollution
+
+**Example test with improvements:**
+
+```javascript
+// Before: Non-deterministic
+const idempotencyKey = "dedup-dup-" + Date.now();
+const tenantId = "t-dedup-dup-" + Date.now();
+
+// After: Deterministic and readable
+const idempotencyKey = getTestId("dedup-dup");     // dedup-dup-0
+const tenantId = "tenant-dedup-2";                  // consistent per test
+```
+
+---
+
 ### Option A: Run Tests WITHOUT Docker Containers
 
 **For development/debugging (services must already be running):**
@@ -420,6 +443,13 @@ npm run test:integration
 ```
 
 Runs all tests and displays results in terminal.
+
+**Features:**
+
+- Tests run directly against running services
+- Fast feedback loop (useful during development)
+- Services must be started beforehand (see Quick Start)
+- Each test uses stable, deterministic IDs
 
 ---
 
@@ -455,6 +485,24 @@ RUN_TESTS=true docker-compose up
 ```
 
 Same behavior as Option B, but using environment variable instead of profile flag.
+
+---
+
+### Test Coverage
+
+The test suite covers:
+
+| Area | Tests | Focus |
+|------|-------|-------|
+| **Duplicate Detection** | 3 | Idempotency, dedup keys, multiple messages |
+| **Channel Tests** | 12 | Email, SMS, WhatsApp with variations |
+| **Validation** | 6 | Required fields, formats, constraints |
+| **Multi-Tenancy** | 2 | Tenant isolation, user separation |
+| **Metadata** | 3 | Priority, custom fields, empty metadata |
+| **Response Format** | 4 | UUID validation, status codes, required fields |
+| **DB-Anchored Idempotency** | 4 | Kafka queueing, Redis caching, batch processing |
+
+**Total: 34 comprehensive integration tests**
 
 ---
 
@@ -730,6 +778,47 @@ All containers should show `Up X seconds` or `healthy`.
 
 ---
 
+### Test Design & Best Practices
+
+The integration test suite uses several best practices for reliability:
+
+#### 1. **Deterministic Test IDs**
+
+Tests use a global counter to generate stable, reproducible IDs:
+
+```javascript
+// getTestId helper function generates: prefix-0, prefix-1, prefix-2, etc.
+const testIdempotencyKey = getTestId("dedup");      // dedup-0
+const testIdempotencyKey2 = getTestId("dedup");     // dedup-1
+```
+
+**Benefits:**
+- Tests are reproducible across runs
+- Easy to debug (consistent values)
+- No flaky tests from random timestamps
+- Clear test ID patterns in logs
+
+#### 2. **Isolated Test Data**
+
+Each test uses its own tenant/user IDs to prevent cross-test pollution:
+
+```javascript
+// Test 1: Uses tenant-dedup-1, user-dedup-1
+// Test 2: Uses tenant-dedup-2, user-dedup-2
+// Test 3: Uses tenant-dedup-multi, user-dedup-multi
+```
+
+#### 3. **Async/Await Pattern**
+
+All async operations properly await results:
+
+```javascript
+const response = await makeRequest("POST", "/api/messages", body);
+assertEquals(response.status, 202);
+```
+
+---
+
 ### Option 1: Integration Tests (Without Docker Containers)
 
 Run tests directly in your terminal (fastest for development):
@@ -771,7 +860,7 @@ RUN_TESTS=true docker-compose up
 1. Start all infrastructure (Kafka, Redis, MySQL, ES, Kibana)
 2. Start application services (Router, Aggregator, Logger)
 3. Wait 10 seconds for services to initialize
-4. Run full integration test suite
+4. Run full integration test suite with stable test IDs
 5. Display results in docker-compose logs
 
 **Watch test output:**

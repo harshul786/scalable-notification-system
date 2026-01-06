@@ -12,6 +12,7 @@ export interface Message {
   attempts: number;
   createdAt: Date;
   updatedAt: Date;
+  idempotencyKey?: string; // Optional field for Kafka transport
 }
 
 export interface CreateMessageRequest {
