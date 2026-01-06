@@ -10,6 +10,23 @@ import { MessagePublisher } from "../services/MessagePublisher";
 import { DeduplicationService } from "../services/DeduplicationService";
 import { HashService } from "../services/HashService";
 
+/**
+ * MessageController: Ingress point for message submission
+ *
+ * DB-Anchored Idempotency Model:
+ * - Redis: Soft ingress cache only (fast path for duplicates)
+ * - DB: Source of truth for idempotency
+ * - Kafka: Unconditional enqueue (idempotency checked in consumer)
+ *
+ * Flow:
+ * 1. Check Redis cache (fast path)
+ *    - Hit: Return cached response, DO NOT enqueue
+ *    - Miss: Continue
+ * 2. Enqueue to Kafka (unconditionally)
+ * 3. Consumer validates against DB (batch bulk check)
+ * 4. Consumer inserts only NEW messages to DB
+ * 5. Warm Redis cache after DB commit (not before)
+ */
 export class MessageController {
   constructor(
     private messageRepository: MessageRepository,
@@ -29,7 +46,6 @@ export class MessageController {
         res.status(202).json(response);
       }
     } catch (error: any) {
-      const { v4: uuidv4 } = require("uuid");
       const traceId = uuidv4();
       try {
         await this.messagePublisher.publishError({
@@ -49,6 +65,15 @@ export class MessageController {
     }
   }
 
+  /**
+   * Handle message creation with DB-anchored idempotency
+   *
+   * Key changes from previous implementation:
+   * 1. Check Redis cache first (soft dedup)
+   * 2. If Redis miss: Enqueue to Kafka unconditionally
+   * 3. DO NOT write to DB in this service (moved to consumer)
+   * 4. Consumer does bulk DB idempotency check
+   */
   private async handleCreateMessage(
     request: CreateMessageRequest
   ): Promise<MessageResponse> {
@@ -56,6 +81,9 @@ export class MessageController {
 
     const traceId = uuidv4();
     const messageId = uuidv4();
+
+    // Generate both idempotency key (from request) and dedup key (content hash)
+    const idempotencyKey = request.idempotencyKey;
     const dedupKey = this.hashService.generateDedupKey(
       request.body,
       request.userId,
@@ -63,23 +91,37 @@ export class MessageController {
       request.tenantId
     );
 
-    const isNew = await this.deduplicationService.checkDuplicate(dedupKey);
+    // STEP 1: Check Redis ingress cache (soft layer only)
+    const isNew = await this.deduplicationService.checkAndCacheIngressRequest(
+      request.tenantId,
+      idempotencyKey
+    );
 
     if (!isNew) {
+      // Redis HIT: Request was recently seen
+      // Check if we have cached response
+      const cached = await this.deduplicationService.getCachedIngressRequest(
+        request.tenantId,
+        idempotencyKey
+      );
+
+      console.log(
+        `[MessageController] Redis cache HIT for ${request.tenantId}/${idempotencyKey}`,
+        cached
+      );
+
       // Emit duplicate log
       try {
         await this.messagePublisher.publishLog({
           service: "router",
           traceId,
           spanId: uuidv4(),
-          messageId,
+          messageId: cached?.messageId || messageId,
           userId: request.userId,
           dedupKey,
           channel: request.channel,
           status: "DUPLICATE",
-          message: `Duplicate message detected`,
-          error: "Duplicate message",
-          attempt: 0,
+          message: `Duplicate request (Redis cache hit)`,
           timestamp: new Date().toISOString(),
         });
       } catch (logError) {
@@ -87,12 +129,16 @@ export class MessageController {
       }
 
       return {
-        messageId,
+        messageId: cached?.messageId || messageId,
         dedupKey,
         traceId,
         status: "DUPLICATE",
       };
     }
+
+    // Redis MISS: Request is new (or Redis unavailable)
+    // STEP 2: Enqueue to Kafka unconditionally
+    // DB write and idempotency check happens in Kafka consumer
 
     const message: Message = {
       messageId,
@@ -108,10 +154,13 @@ export class MessageController {
       attempts: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
+      idempotencyKey,
     };
 
-    await this.messageRepository.save(message);
+    // Publish to Kafka without writing to DB
     await this.messagePublisher.publishMessageEvent(message);
+
+    // Emit accepted log
     await this.messagePublisher.publishLog({
       service: "router",
       traceId,
